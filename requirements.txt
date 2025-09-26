@@ -1,0 +1,10 @@
+langchain-google-genai
+langgraph
+langchain_core
+langchain-community
+google-cloud-texttospeech
+
+fastapi
+uvicorn
+streamlit
+requests
