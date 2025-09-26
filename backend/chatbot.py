@@ -136,6 +136,8 @@ class Chatbot:
         return state
 
     def invoke(self, message: str, thread_id: str, user_id: str):
+        # Ensure user_id is treated as a string (UUID from database will be converted to string)
+        user_id = str(user_id)
         config = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
         response = self.graph.invoke({"messages": [HumanMessage(content=message)]}, config)
         llm_response = response["messages"][-1].content

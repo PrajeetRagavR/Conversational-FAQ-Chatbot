@@ -8,9 +8,12 @@ from chatbot import Chatbot
 import os
 # Import RAG (Retrieval-Augmented Generation) related functions for document processing.
 from rag.rag import process_document_for_rag, create_vector_store, get_retriever
-# Import Annotated for type hinting with metadata and APIKeyHeader for security.
-from typing import Annotated
-from fastapi.security import APIKeyHeader
+
+from database import get_db, chat_db_instance, ChatSession, ChatMessage
+from auth import get_current_active_user
+from routes import auth_routes
+from schema import ChatMessageCreate # Import new schemas
+from sqlalchemy.orm import Session
 
 # Initialize the FastAPI application.
 app = FastAPI()
@@ -32,7 +35,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from utils import verify_token
+# Include authentication routes
+app.include_router(auth_routes.router, prefix="/auth")
 
 
 # Instantiate the Chatbot class, which handles the conversational logic and agent interactions.
@@ -42,6 +46,9 @@ chatbot = Chatbot()
 document_path = "C:\\ValueHealth\\Training\\LangGraph\\Simple_langgraph\\langchain-academy\\chatbot\\backend\\rag\\Document.pdf"    
 collection_name = "hp_victus_faq"
 
+@app.on_event("startup")
+async def startup_event():
+    chat_db_instance.create_tables()
 # Check if the document exists before processing
 if os.path.exists(document_path):
     # Only process if the collection does not exist to avoid re-embedding on every startup
@@ -63,18 +70,68 @@ else:
 # Define the Pydantic model for incoming chat messages.
 class Message(BaseModel):
     user_id: str
-    thread_id: str
+    chat_session_id: str # Renamed from thread_id
     content: str
 
 # Define a POST endpoint for chat interactions.
 @app.post("/chat")
-async def chat(message: Message, token: Annotated[str, Depends(verify_token)]):
-    response = chatbot.invoke(message.content, message.thread_id, message.user_id)
-    return {"response": response}
+async def chat(message: Message, current_user = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    # Check if the query has been asked before and a non-null LLM response exists
+    cached_message = db.query(ChatMessage).filter(
+        ChatMessage.chat_session_id == message.chat_session_id,
+        ChatMessage.user_query == message.content,
+        ChatMessage.llm_resp.isnot(None)
+    ).first()
+
+    if cached_message:
+        print(f"Fetching response from cache for query: {message.content}")
+        return {"response": cached_message.llm_resp, "user_id": str(current_user.id), "chat_session_id": message.chat_session_id}
+
+    # If not cached or llm_resp is null, invoke the chatbot
+    response = chatbot.invoke(message.content, message.chat_session_id, str(current_user.id))
+    return {"response": response, "user_id": str(current_user.id), "chat_session_id": message.chat_session_id}
+
+@app.post("/save_chat_message", status_code=status.HTTP_201_CREATED)
+async def save_chat_message(chat_message: ChatMessageCreate, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+    # Ensure the user_id in the chat_message matches the authenticated user's ID
+    if chat_message.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User ID mismatch")
+
+    # Check if chat session exists, if not, create a new one
+    chat_session = db.query(ChatSession).filter(
+        ChatSession.id == chat_message.chat_session_id,
+        ChatSession.user_id == chat_message.user_id
+    ).first()
+
+    if not chat_session:
+        new_session = ChatSession(
+            id=chat_message.chat_session_id,
+            user_id=chat_message.user_id,
+            session_name="New Chat"
+        )
+        db.add(new_session)
+        db.commit()
+        db.refresh(new_session)
+        chat_session = new_session
+        print(f"Created new chat session: {chat_session.id} for user: {chat_session.user_id}")
+
+    # Create a single ChatMessage entry for both user query and LLM response
+    new_message = ChatMessage(
+        chat_session_id=chat_message.chat_session_id,
+        user_query=chat_message.user_query,
+        llm_resp=chat_message.llm_resp
+    )
+    print(f"Saving message - User Query: {chat_message.user_query}, LLM Response: {chat_message.llm_resp} for session: {chat_message.chat_session_id}")
+
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+    print(f"Successfully saved message with ID: {new_message.id}")
+    return {"message": "Chat message saved successfully"}
 
 # Define a POST endpoint for uploading documents for RAG processing.
 @app.post("/upload_document")
-async def upload_document(token: Annotated[str, Depends(verify_token)], file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), current_user = Depends(get_current_active_user)):
     upload_dir = "./backend/rag/uploaded_documents"
     os.makedirs(upload_dir, exist_ok=True)
 
