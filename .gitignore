@@ -40,3 +40,4 @@ wheels/
 .vscode/
 *.swp
 *.swo
+.env
