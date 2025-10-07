@@ -80,7 +80,7 @@ async def chat(message: Message, current_user = Depends(get_current_active_user)
     cached_message = db.query(ChatMessage).filter(
         ChatMessage.chat_session_id == message.chat_session_id,
         ChatMessage.user_query == message.content,
-        ChatMessage.llm_resp.isnot(None)
+        ChatMessage.llm_resp.isnot(None) & (ChatMessage.llm_resp != "")
     ).first()
 
     if cached_message:
@@ -121,7 +121,7 @@ async def save_chat_message(chat_message: ChatMessageCreate, db: Session = Depen
         user_query=chat_message.user_query,
         llm_resp=chat_message.llm_resp
     )
-    print(f"Saving message - User Query: {chat_message.user_query}, LLM Response: {chat_message.llm_resp} for session: {chat_message.chat_session_id}")
+    print(f"Saving message - User Query: {chat_message.user_query}, /nLLM Response: {chat_message.llm_resp} /nfor session: {chat_message.chat_session_id}")
 
     db.add(new_message)
     db.commit()

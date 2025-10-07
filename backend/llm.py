@@ -11,7 +11,10 @@ def get_llm(model_name: str = "gemini-2.5-flash", temperature: float = 0.7, tool
     if not google_api_key:
         raise ValueError("GOOGLE_API_KEY environment variable not set.")
     llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature, google_api_key=google_api_key)
+    # print(llm)
+    # print(llm.invoke("what is the largest animal and tell me 5 facts about it"))
     tools=[get_tavily_tool()]
     if tools:
         return llm.bind_tools(tools)
     return llm
+
