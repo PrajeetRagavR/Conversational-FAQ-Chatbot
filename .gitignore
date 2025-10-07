@@ -3,10 +3,13 @@ env/
 venv/
 .env/
 .venv/
+.conda/
 
 # Chroma database
 chroma_db/
 
+#LOCAL FILES
+backend/backend/
 # Python
 __pycache__/
 *.py[cod]

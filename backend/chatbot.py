@@ -4,7 +4,7 @@ from typing import Literal
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, MessagesState, END, START
-from trustcall import create_extractor
+
 
 from llm import get_llm
 from schema import UserProfile, get_across_thread_memory, get_within_thread_memory
