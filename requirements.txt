@@ -3,8 +3,13 @@ langgraph
 langchain_core
 langchain-community
 google-cloud-texttospeech
-
+email-validator
 fastapi
 uvicorn
 streamlit
 requests
+sqlalchemy_utils 
+chromadb
+python-jose
+passlib
+bcrypt
