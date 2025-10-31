@@ -27,10 +27,7 @@ def login_user(username, password):
             data={"username": username, "password": password}
         )
         if response.status_code == 200:
-            response_data = response.json()
-            st.session_state.access_token = response_data["access_token"]
-            st.session_state.user_id = response_data["user_id"] # Store user_id
-            return response.status_code, response_data
+            return response.status_code, response.json()
         return response.status_code, response.json()
     except requests.exceptions.RequestException as e:
         return 500, {"detail": f"Connection error: {str(e)}"}

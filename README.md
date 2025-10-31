@@ -12,6 +12,7 @@ This project implements a chatbot using Langchain, FastAPI for the backend, and 
   - [Backend](#backend)
   - [Frontend](#frontend)
 - [RAG Functionality](#rag-functionality)
+- [Chatbot Agent Implementation](#chatbot-agent-implementation)
 - [Authentication](#authentication)
 - [Usage](#usage)
 - [API Endpoints](#api-endpoints)
@@ -41,10 +42,6 @@ frontend/
 │   auth.py
 │   pages/
 │       auth_pages.py
-lc_chatbot/
-│   langchain_chatbot.py
-│   lc_main.py
-│   utils.py
 requirements.txt
 ```
 
@@ -122,6 +119,27 @@ This project utilizes Retrieval-Augmented Generation (RAG) to enhance the chatbo
 4.  **Retriever**: A retriever is created from the vector store to fetch the most relevant document chunks based on a user's query, which are then used to augment the language model's response.
 
 The `backend/rag/rag.py` module handles these operations, allowing for the processing of documents and the creation of a persistent vector store.
+## Chatbot Agent Implementation
+
+The core of the chatbot's conversational logic is implemented using `langgraph` to define a stateful agent workflow. This agent is designed to reason and act based on user input, utilizing a set of tools to gather information and formulate responses.
+
+Key components of the chatbot agent:
+
+1.  **StateGraph**: The agent's workflow is defined using `StateGraph` from `langgraph`, which manages the conversational state and transitions between different nodes.
+2.  **Nodes**: The graph consists of two main nodes:
+    *   **`chatbot`**: This node is responsible for invoking the language model, integrating RAG for document retrieval, and using the Tavily search tool for external information.
+    *   **`write_memory`**: This node handles the creation and updating of the user's long-term memory based on the conversation.
+3.  **Language Model (LLM)**: The agent uses `ChatGoogleGenerativeAI` (specifically, "gemini-pro") as its underlying language model for understanding queries and generating responses.
+4.  **Tools**: The agent is equipped with the following tools:
+    *   **RAG Integration**: The `chatbot` node dynamically integrates a retriever (if set) to perform Retrieval-Augmented Generation, answering questions from uploaded documents.
+    *   **`TavilySearchResults`**: This tool enables the agent to perform web searches using Tavily, providing it with up-to-date information from the internet.
+5.  **Memory Management**: The agent employs two types of memory:
+    *   **`across_thread_memory`**: For long-term user profile memory, allowing personalization across different chat sessions.
+    *   **`within_thread_memory`**: For short-term conversational memory within a single chat session.
+6.  **Prompt**: The agent's behavior is guided by system messages that incorporate the user's memory for personalized responses and instructions for generating similar search queries.
+
+The `backend/chatbot.py` module encapsulates this agent implementation, providing methods to set the RAG retriever and invoke the agent with user messages.
+
 ## Authentication
 
 User authentication is implemented using FastAPI and JWT (JSON Web Tokens). The process involves:

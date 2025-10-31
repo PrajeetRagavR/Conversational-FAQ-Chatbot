@@ -13,3 +13,4 @@ chromadb
 python-jose
 passlib
 bcrypt
+pypdf
